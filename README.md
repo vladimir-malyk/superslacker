@@ -13,7 +13,7 @@ pip install superslacker
 ## Command-Line Syntax
 
 ```bash
-$ superslacker [-t token] [-c channel] [-n hostname] [-w webhook] [-a attachment]
+$ superslacker [-t token] [-c channel] [-n hostname] [-w webhook] [-a attachment] [-r]
 ```
 
 ### Options
@@ -38,10 +38,16 @@ Post a message to Slack using Slack Incoming WebHook. In order to be able to sen
 
 Add text attachment to message. Attachment will have red color border along the left side.
 
+```-r , --realtime```
+
+Send notifications in a realtime.
+
 
 ## Notes
 
-:ghost: gonna be used as an icon for the message and `superslacker` as a username. 
+When using webhook, do not forget properly customize it with proper Icon and Name in Slack.
+
+:ghost: gonna be used as an icon for the message and `superslacker` as a username.
 
 
 ## Configuration
@@ -55,4 +61,3 @@ The following example assume that `superslacker` is on your system `PATH`.
 command=superslacker --token="slacktoken-slacktoken-slacktoken" --channel="#notifications" --hostname="HOST"
 events=PROCESS_STATE,TICK_60
 ```
-

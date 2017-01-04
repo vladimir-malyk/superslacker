@@ -28,7 +28,7 @@
 # events=PROCESS_STATE,TICK_60
 
 """
-Usage: superslacker [-t token] [-c channel] [-n hostname] [-w webhook] [-a attachment]
+Usage: superslacker [-t token] [-c channel] [-n hostname] [-w webhook] [-a attachment] [-r]
 
 Options:
   -h, --help            show this help message and exit
@@ -42,6 +42,8 @@ Options:
                         Slack Attachment text
   -n HOSTNAME, --hostname=HOSTNAME
                         System Hostname
+  -r , --realtime
+                        Send notifications in realtime
 """
 
 import copy
@@ -54,7 +56,9 @@ from supervisor import childutils
 
 
 class SuperSlacker(ProcessStateMonitor):
-    process_state_events = ['PROCESS_STATE_FATAL']
+    process_state_events = ['PROCESS_STATE_STARTING', 'PROCESS_STATE_RUNNING', \
+    'PROCESS_STATE_BACKOFF', 'PROCESS_STATE_STOPPING', 'PROCESS_STATE_EXITED', \
+    'PROCESS_STATE_STOPPED', 'PROCESS_STATE_FATAL', 'PROCESS_STATE_UNKNOWN']
 
     @classmethod
     def _get_opt_parser(cls):
@@ -66,6 +70,7 @@ class SuperSlacker(ProcessStateMonitor):
         parser.add_option("-w", "--webhook", help="Slack WebHook URL")
         parser.add_option("-a", "--attachment", help="Slack Attachment text")
         parser.add_option("-n", "--hostname", help="System Hostname")
+        parser.add_option("-r", "--realtime", help="Send notifications in realtime")
 
         return parser
 
@@ -116,11 +121,18 @@ class SuperSlacker(ProcessStateMonitor):
         self.hostname = kwargs.get('hostname', None)
         self.webhook = kwargs.get('webhook', None)
         self.attachment = kwargs.get('attachment', None)
+        self.realtime = 'realtime' in kwargs.keys()
+
+    def handle_event(self, headers, payload):
+        ProcessStateMonitor.handle_event(self, headers, payload)
+        if self.realtime:
+            self.send_batch_notification()
+            self.clear_batch()
 
     def get_process_state_change_msg(self, headers, payload):
         pheaders, pdata = childutils.eventdata(payload + '\n')
         txt = ("[{0}] Process {groupname}:{processname} "
-               "failed to start too many times".format(self.hostname, **pheaders))
+               "> {from_state} ".format(self.hostname, **pheaders) + "\n")
         return txt
 
     def send_batch_notification(self):
@@ -138,12 +150,11 @@ class SuperSlacker(ProcessStateMonitor):
         }
 
     def send_message(self, message):
+
         for msg in message['messages']:
             payload = {
                 'channel': message['channel'],
                 'text': msg,
-                'username': 'superslacker',
-                'icon_emoji': ':sos:',
                 'link_names': 1,
                 'attachments': [{"text": message['attachment'], "color": "danger"}]
             }
